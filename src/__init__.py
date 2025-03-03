@@ -1,5 +1,7 @@
 from gymnasium.envs.registration import register
 
 register(
-    id="Stricker-Env", entry_point="VSS-Env.src.envs.stricker:StrickerEnv", max_episode_steps=3600
+    id="Stricker-v0",
+    entry_point="src.envs:StrickerEnv",
+    max_episode_steps=3600
 )
