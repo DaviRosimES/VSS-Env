@@ -1,5 +1,4 @@
 import random
-import math
 import socket
 
 from src.proto.packet_pb2 import Packet
@@ -21,7 +20,7 @@ class ReplacerClient(Client):
             self._client_socket.connect((self._server_address, self._server_port))
             print(f"[INFO] Replacer conectado em {self._server_address}:{self._server_port}.")
         except socket.error as e:
-            print(f"Erro na conexão: {e}")
+            print(f"[ERRO] Erro na conexão: {e}")
 
     def _disconnect_from_network(self):
         self._client_socket.close()
