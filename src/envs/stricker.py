@@ -41,8 +41,8 @@ class StrickerEnv(gym.Env):
             dtype=np.float32
         )
         self.actuator_client = ActuatorClient("127.0.0.1", 20011, action_space=self.action_space)
-        self.replacer_client = ReplacerClient("127.0.0.1", 20011)
-        self.vision_client = VisionClient("224.0.0.1", 10002)
+        self.replacer_client = ReplacerClient("127.0.0.1", 20011, "B")
+        self.vision_client = VisionClient("224.0.0.1", 10002, "B")
 
     def reset(self, seed=None, options=None):
         # Reinicia o ambiente e retorna a observação inicial
@@ -87,6 +87,8 @@ class StrickerEnv(gym.Env):
                 self.actuator_client.close()
             if self.vision_client:
                 self.vision_client.close()
+            if self.replacer_client:
+                self.replacer_client.close()
         except Exception as e:
             print(f"[ERROR] Erro ao fechar conexões: {e}")
 
@@ -201,7 +203,7 @@ class StrickerEnv(gym.Env):
         if self.sent_commands is None:
             return 0
 
-        en_penalty_1 = abs(self.sent_commands[0].v_left_wheel)
-        en_penalty_2 = abs(self.sent_commands[0].v_right_wheel)
+        en_penalty_1 = abs(self.sent_commands[0])
+        en_penalty_2 = abs(self.sent_commands[1])
         energy_penalty = -(en_penalty_1 + en_penalty_2)
         return energy_penalty
