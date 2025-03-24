@@ -3,8 +3,10 @@ Farama-Notifications==0.0.4
 grpcio==1.69.0
 gymnasium==1.0.0
 importlib-metadata==8.5.0
-numpy==2.0.2
+numpy~=2.2.3
 protobuf==3.6.1
 six==1.17.0
 typing-extensions==4.12.2
 zipp==3.21.0
+pytest~=8.3.5
+setuptools~=68.2.0
