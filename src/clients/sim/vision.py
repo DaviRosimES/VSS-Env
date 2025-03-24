@@ -16,11 +16,12 @@ class VisionClient(Client):
         self.__environment: Environment = Environment()
         self.__frame: Frame = Frame()
         self.__field: Field = Field.from_type(field_type)
-        self.__observation: np.ndarray = np.zeros((40,), dtype=np.float32)
+        self.__observation: np.ndarray = np.zeros((11,), dtype=np.float32)
 
         # Constantes para normalização
-        self.MAX_SPEED = 2.0  # Velocidade máxima esperada (normalizada)
-        self.MAX_ANGULAR_SPEED = 10.0  # Velocidade angular máxima esperada (normalizada)
+        self.NORM_BOUND = 1.0
+        self.MAX_SPEED = 2.0  # Velocidade linear máxima em m/s
+        self.MAX_ANGULAR_SPEED = 100.0  # rad/s
 
         self.connect()
 
@@ -44,7 +45,7 @@ class VisionClient(Client):
                 socket.IP_ADD_MEMBERSHIP,
                 multicast_group + local_interface
             )
-            print(f"[INFO] Visão conectada em {self._server_address}:{self._server_port}.")
+            #print(f"[INFO] Visão conectada em {self._server_address}:{self._server_port}.")
         except Exception as e:
             print(f"[ERROR] Failed to connect to network: {e}")
 
@@ -69,11 +70,14 @@ class VisionClient(Client):
                 print("[INFO] Visão desconectada.")
 
     def run_client(self):
-        """Processa um pacote de visão e retorna o frame e a observação."""
+        '''
+        Recebe o pacote de visão e trata ele.
+        :return: Frame e Observação
+        '''
         try:
             # Recebe um único pacote
             data, sender = self._client_socket.recvfrom(2048)
-            print("[INFO] Pacote de visão recebido.")
+            #print("[INFO] Pacote de visão recebido.")
 
             if not data:
                 return None, None
@@ -86,7 +90,7 @@ class VisionClient(Client):
             with self.__environment_mutex:
                 self.__environment = environment
                 self.__fill_frame()
-                self.__fill_observation()
+                self.__fill_obs_solo_agent()
 
             return self.get_frame(), self.get_observation()
 
@@ -96,6 +100,38 @@ class VisionClient(Client):
         except Exception as e:
             print(f"[ERROR] Erro em run_client: {e}")
             return None, None
+
+    def __fill_obs_solo_agent(self):
+        """Preenche o array de observação normalizada apenas com os dados da bola e do robô azul número 2."""
+        # Inicializa a lista de observação
+        self.__observation = np.zeros((11,), dtype=np.float32)
+        index = 0
+
+        self.__observation[index] = self.__norm_pos(self.__frame.ball.x)
+        index += 1
+        self.__observation[index] = self.__norm_pos_y(self.__frame.ball.y)
+        index += 1
+        self.__observation[index] = self.__norm_v(self.__frame.ball.v_x)
+        index += 1
+        self.__observation[index] = self.__norm_v(self.__frame.ball.v_y)
+        index += 1
+
+        robot = self.__frame.blue_robots.get(2)
+        self.__observation[index] = self.__norm_pos(robot.x)
+        index += 1
+        self.__observation[index] = self.__norm_pos_y(robot.y)
+        index += 1
+        self.__observation[index] = np.sin(robot.orientation)
+        index += 1
+        self.__observation[index] = np.cos(robot.orientation)
+        index += 1
+        self.__observation[index] = self.__norm_v(robot.v_x)
+        index += 1
+        self.__observation[index] = self.__norm_v(robot.v_y)
+        index += 1
+        self.__observation[index] = self.__norm_w(robot.v_orientation)
+        index += 1
+
 
     def __fill_frame(self) -> None:
         self.__frame.ball = Ball(
@@ -139,14 +175,14 @@ class VisionClient(Client):
     def __fill_observation(self):
         """Preenche o array de observação normalizada."""
         # Reinicia o array de observação
-        self.__observation = np.zeros((40,), dtype=np.float32)
+        self.__observation = np.zeros((46,), dtype=np.float32)
 
         index = 0  # Índice para controlar a posição no array
 
         # Informações da bola (4 elementos)
         self.__observation[index] = self.__norm_pos(self.__frame.ball.x)
         index += 1
-        self.__observation[index] = self.__norm_pos(self.__frame.ball.y)
+        self.__observation[index] = self.__norm_pos_y(self.__frame.ball.y)
         index += 1
         self.__observation[index] = self.__norm_v(self.__frame.ball.v_x)
         index += 1
@@ -157,11 +193,11 @@ class VisionClient(Client):
         for robot in self.__frame.blue_robots.values():
             self.__observation[index] = self.__norm_pos(robot.x)
             index += 1
-            self.__observation[index] = self.__norm_pos(robot.y)
+            self.__observation[index] = self.__norm_pos_y(robot.y)
             index += 1
-            self.__observation[index] = np.sin(np.deg2rad(robot.orientation))
+            self.__observation[index] = np.sin(robot.orientation)
             index += 1
-            self.__observation[index] = np.cos(np.deg2rad(robot.orientation))
+            self.__observation[index] = np.cos(robot.orientation)
             index += 1
             self.__observation[index] = self.__norm_v(robot.v_x)
             index += 1
@@ -170,11 +206,15 @@ class VisionClient(Client):
             self.__observation[index] = self.__norm_w(robot.v_orientation)
             index += 1
 
-        # Robôs amarelos (5 elementos por robô)
+        # Robôs amarelos (7 elementos por robô)
         for robot in self.__frame.yellow_robots.values():
             self.__observation[index] = self.__norm_pos(robot.x)
             index += 1
-            self.__observation[index] = self.__norm_pos(robot.y)
+            self.__observation[index] = self.__norm_pos_y(robot.y)
+            index += 1
+            self.__observation[index] = np.sin(robot.orientation)
+            index += 1
+            self.__observation[index] = np.cos(robot.orientation)
             index += 1
             self.__observation[index] = self.__norm_v(robot.v_x)
             index += 1
@@ -186,14 +226,14 @@ class VisionClient(Client):
     def get_observation(self) -> np.ndarray:
         return self.__observation
 
-    def __norm_pos(self, value):
-        """Normaliza a posição em relação ao campo."""
-        return value / self.__field.LENGTH if abs(value) <= self.__field.LENGTH else np.sign(value)
+    def __norm_pos(self, pos):
+        return np.clip((pos / (self.__field.LENGTH / 2)), -self.NORM_BOUND, self.NORM_BOUND)
 
-    def __norm_v(self, value):
-        """Normaliza a velocidade linear."""
-        return value / self.MAX_SPEED if abs(value) <= self.MAX_SPEED else np.sign(value)
+    def __norm_pos_y(self, pos_y):
+        return np.clip((pos_y / (self.__field.WIDTH / 2)), -self.NORM_BOUND, self.NORM_BOUND)
 
-    def __norm_w(self, value):
-        """Normaliza a velocidade angular."""
-        return value / self.MAX_ANGULAR_SPEED if abs(value) <= self.MAX_ANGULAR_SPEED else np.sign(value)
+    def __norm_v(self, v):
+        return np.clip(v / self.MAX_SPEED, -self.NORM_BOUND, self.NORM_BOUND)
+
+    def __norm_w(self, w):
+        return np.clip(w / self.MAX_ANGULAR_SPEED, -self.NORM_BOUND, self.NORM_BOUND)

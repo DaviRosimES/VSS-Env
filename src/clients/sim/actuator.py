@@ -12,8 +12,8 @@ class ActuatorClient(Client):
         super().__init__(server_address, server_port)
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
-        self.MAX_VEL = 1.0  # Velocidade máxima normalizada
-        self.WHEEL_RADIUS = 0.02  # Raio da roda (em metros)
+        self.MAX_SPEED = 2.0  # Velocidade linear máxima em m/s
+        self.WHEEL_RADIUS = 0.02
         self.ou_actions = [
             OrnsteinUhlenbeckAction(action_space=action_space)
             for _ in range(n_robots_blue + n_robots_yellow)
@@ -25,7 +25,7 @@ class ActuatorClient(Client):
         self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             self._client_socket.connect((self._server_address, self._server_port))
-            print(f"[INFO] Actuator conectado em {self._server_address}:{self._server_port}.")
+            #print(f"[INFO] Actuator conectado em {self._server_address}:{self._server_port}.")
         except socket.error as e:
             print(f"[ERRO] Erro na conexão com o Actuator: {e}")
 
@@ -33,7 +33,7 @@ class ActuatorClient(Client):
         """Fecha a conexão com o simulador."""
         if self._client_socket:
             self._client_socket.close()
-            print("[INFO] Actuator desconectado.")
+            #print("[INFO] Actuator desconectado.")
 
     def send_actions(self, actions):
         """Envia os comandos para o simulador."""
@@ -79,14 +79,14 @@ class ActuatorClient(Client):
 
     def __actions_to_v_wheels(self, actions):
         """Converte ações em velocidades das rodas (rad/s)."""
-        left = np.clip(actions[0], -self.MAX_VEL, self.MAX_VEL) / self.WHEEL_RADIUS
-        right = np.clip(actions[1], -self.MAX_VEL, self.MAX_VEL) / self.WHEEL_RADIUS
+        left = np.clip(actions[0] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED) / self.WHEEL_RADIUS
+        right = np.clip(actions[1] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED) / self.WHEEL_RADIUS
         return left, right
 
     def __send_packet(self, packet):
         """Envia um pacote para o simulador."""
         try:
             self._client_socket.sendall(packet.SerializeToString())
-            print("[INFO] Pacote enviado com sucesso!")
+            #print("[INFO] Pacote enviado com sucesso!")
         except socket.error as e:
             print(f"[ERRO] Falha ao enviar pacote: {e}")
