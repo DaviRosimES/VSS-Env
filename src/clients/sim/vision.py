@@ -16,12 +16,6 @@ class VisionClient(Client):
         self.__environment: Environment = Environment()
         self.__frame: Frame = Frame()
         self.__field: Field = Field.from_type(field_type)
-        self.__observation: np.ndarray = np.zeros((11,), dtype=np.float32)
-
-        # Constantes para normalização
-        self.NORM_BOUND = 1.0
-        self.MAX_SPEED = 2.0  # Velocidade linear máxima em m/s
-        self.MAX_ANGULAR_SPEED = 100.0  # rad/s
 
         self.connect()
 
@@ -70,10 +64,10 @@ class VisionClient(Client):
                 print("[INFO] Visão desconectada.")
 
     def run_client(self):
-        '''
+        """
         Recebe o pacote de visão e trata ele.
         :return: Frame e Observação
-        '''
+        """
         try:
             # Recebe um único pacote
             data, sender = self._client_socket.recvfrom(2048)
@@ -90,47 +84,15 @@ class VisionClient(Client):
             with self.__environment_mutex:
                 self.__environment = environment
                 self.__fill_frame()
-                self.__fill_obs_solo_agent()
 
-            return self.get_frame(), self.get_observation()
+            return self.get_frame()
 
         except DecodeError:
             print("[ERROR] Falha ao decodificar o pacote.")
-            return None, None
+            return None
         except Exception as e:
             print(f"[ERROR] Erro em run_client: {e}")
-            return None, None
-
-    def __fill_obs_solo_agent(self):
-        """Preenche o array de observação normalizada apenas com os dados da bola e do robô azul número 2."""
-        # Inicializa a lista de observação
-        self.__observation = np.zeros((11,), dtype=np.float32)
-        index = 0
-
-        self.__observation[index] = self.__norm_pos(self.__frame.ball.x)
-        index += 1
-        self.__observation[index] = self.__norm_pos_y(self.__frame.ball.y)
-        index += 1
-        self.__observation[index] = self.__norm_v(self.__frame.ball.v_x)
-        index += 1
-        self.__observation[index] = self.__norm_v(self.__frame.ball.v_y)
-        index += 1
-
-        robot = self.__frame.blue_robots.get(2)
-        self.__observation[index] = self.__norm_pos(robot.x)
-        index += 1
-        self.__observation[index] = self.__norm_pos_y(robot.y)
-        index += 1
-        self.__observation[index] = np.sin(robot.orientation)
-        index += 1
-        self.__observation[index] = np.cos(robot.orientation)
-        index += 1
-        self.__observation[index] = self.__norm_v(robot.v_x)
-        index += 1
-        self.__observation[index] = self.__norm_v(robot.v_y)
-        index += 1
-        self.__observation[index] = self.__norm_w(robot.v_orientation)
-        index += 1
+            return None
 
 
     def __fill_frame(self) -> None:
@@ -171,69 +133,3 @@ class VisionClient(Client):
 
     def get_frame(self) -> Frame:
         return self.__frame
-
-    def __fill_observation(self):
-        """Preenche o array de observação normalizada."""
-        # Reinicia o array de observação
-        self.__observation = np.zeros((46,), dtype=np.float32)
-
-        index = 0  # Índice para controlar a posição no array
-
-        # Informações da bola (4 elementos)
-        self.__observation[index] = self.__norm_pos(self.__frame.ball.x)
-        index += 1
-        self.__observation[index] = self.__norm_pos_y(self.__frame.ball.y)
-        index += 1
-        self.__observation[index] = self.__norm_v(self.__frame.ball.v_x)
-        index += 1
-        self.__observation[index] = self.__norm_v(self.__frame.ball.v_y)
-        index += 1
-
-        # Robôs azuis (7 elementos por robô)
-        for robot in self.__frame.blue_robots.values():
-            self.__observation[index] = self.__norm_pos(robot.x)
-            index += 1
-            self.__observation[index] = self.__norm_pos_y(robot.y)
-            index += 1
-            self.__observation[index] = np.sin(robot.orientation)
-            index += 1
-            self.__observation[index] = np.cos(robot.orientation)
-            index += 1
-            self.__observation[index] = self.__norm_v(robot.v_x)
-            index += 1
-            self.__observation[index] = self.__norm_v(robot.v_y)
-            index += 1
-            self.__observation[index] = self.__norm_w(robot.v_orientation)
-            index += 1
-
-        # Robôs amarelos (7 elementos por robô)
-        for robot in self.__frame.yellow_robots.values():
-            self.__observation[index] = self.__norm_pos(robot.x)
-            index += 1
-            self.__observation[index] = self.__norm_pos_y(robot.y)
-            index += 1
-            self.__observation[index] = np.sin(robot.orientation)
-            index += 1
-            self.__observation[index] = np.cos(robot.orientation)
-            index += 1
-            self.__observation[index] = self.__norm_v(robot.v_x)
-            index += 1
-            self.__observation[index] = self.__norm_v(robot.v_y)
-            index += 1
-            self.__observation[index] = self.__norm_w(robot.v_orientation)
-            index += 1
-
-    def get_observation(self) -> np.ndarray:
-        return self.__observation
-
-    def __norm_pos(self, pos):
-        return np.clip((pos / (self.__field.LENGTH / 2)), -self.NORM_BOUND, self.NORM_BOUND)
-
-    def __norm_pos_y(self, pos_y):
-        return np.clip((pos_y / (self.__field.WIDTH / 2)), -self.NORM_BOUND, self.NORM_BOUND)
-
-    def __norm_v(self, v):
-        return np.clip(v / self.MAX_SPEED, -self.NORM_BOUND, self.NORM_BOUND)
-
-    def __norm_w(self, w):
-        return np.clip(w / self.MAX_ANGULAR_SPEED, -self.NORM_BOUND, self.NORM_BOUND)
