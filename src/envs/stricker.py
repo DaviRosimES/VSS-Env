@@ -2,10 +2,10 @@ import math
 import numpy as np
 import gymnasium as gym
 
-from src.clients.sim import ActuatorClient, VisionClient
-from src.clients.sim.replacer import ReplacerClient
-from src.entities import Field, Frame
-from src.utils.norm import Normalizer
+from src.clients.sim import ActuatorClient, VisionClient, ReplacerClient
+from src.entities import Field, Frame, Robot
+from src.noise import OrnsteinUhlenbeckAction
+from src.utils import Normalizer
 
 
 class StrickerEnv(gym.Env):
@@ -14,17 +14,18 @@ class StrickerEnv(gym.Env):
     def __init__(self):
         self.__frame: Frame = Frame()
         self.__field: Field = Field.from_type("B")
-
         self.__previous_ball_potential = None
         self.__sent_commands = None
 
+        # Constantes de tempo
         self.__TIME_STEP = 1 / 60
         self.__current_step = 0
         self.__MAX_STEPS = 600  # 10s * 60fps
 
-        self.W_MOVE = 0.2  # Peso para o movimento em direção à bola
-        self.W_BALL_GRAD = 0.8  # Peso para o gradiente do potencial da bola
-        self.W_ENERGY = 2e-4  # Peso para a penalidade de energia
+        # Pesos para as recompensas
+        self.__W_MOVE = 0.2
+        self.__W_BALL_GRAD = 0.8
+        self.__W_ENERGY = 2e-4
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -38,6 +39,13 @@ class StrickerEnv(gym.Env):
             shape=(11,),
             dtype=np.float32
         )
+
+        self.__ou_actions = [
+            OrnsteinUhlenbeckAction(action_space=self.action_space)
+            for _ in range(6)
+        ]
+
+        # Clients de comunicação com o FIRASim
         self.actuator_client = ActuatorClient("127.0.0.1", 20011, action_space=self.action_space)
         self.replacer_client = ReplacerClient("127.0.0.1", 20011, "B")
         self.vision_client = VisionClient("224.0.0.1", 10002, "B")
@@ -61,10 +69,11 @@ class StrickerEnv(gym.Env):
 
         return self.__get_observation(), {}
 
-    def step(self, action):
+    def step(self, actions):
         # Envia os comandos para todos os robôs
-        self.actuator_client.send_actions(action)
-        self.__sent_commands = action  # Armazena os comandos enviados
+        commands = self.__convert_actions_to_commands(actions)
+        self.actuator_client.send_commands(commands)
+        self.__sent_commands = commands
 
         # Aguarda o próximo frame do simulador
         self.__frame = self.vision_client.run_client()
@@ -94,6 +103,26 @@ class StrickerEnv(gym.Env):
     def render(self):
         # Não é necessário nenhuma implementação para renderizar já que o FIRASim sera nosso visualizador.
         pass
+
+    def __convert_actions_to_commands(self, actions: dict) -> list:
+        commands = []
+        num_blue_robots = 3
+
+        # Robô controlado (ID 2)
+        v_left, v_right = self.actuator_client.actions_to_v_wheels(actions)
+        commands.append(Robot(yellow_team=False, id=2, v_left_wheel=v_left, v_right_wheel=v_right))
+
+        # Outros robôs
+        for i in range(num_blue_robots * 2):
+            if i == 2:  # Pula o robô controlado
+                continue
+            ou_action = self.__ou_actions[i].sample()
+            v_left, v_right = self.actuator_client.actions_to_v_wheels(ou_action)
+            team = False if i < num_blue_robots else True
+            robot_id = i if i < num_blue_robots else i - num_blue_robots
+            commands.append(Robot(yellow_team=team, id=robot_id, v_left_wheel=v_left, v_right_wheel=v_right))
+
+        return commands
 
     def __get_observation(self):
         ball_x = Normalizer.norm_pos_x(self.__frame.ball.x)
@@ -133,9 +162,9 @@ class StrickerEnv(gym.Env):
 
             # Recompensa total
             reward = (
-                    self.W_MOVE * move_reward
-                    + self.W_BALL_GRAD * grad_ball_potential
-                    + self.W_ENERGY * energy_penalty
+                    self.__W_MOVE * move_reward
+                    + self.__W_BALL_GRAD * grad_ball_potential
+                    + self.__W_ENERGY * energy_penalty
             )
 
         return reward
@@ -143,10 +172,8 @@ class StrickerEnv(gym.Env):
     def _is_done(self):
         """
         Verifica se aconteceu um gol no episódio.
-
         :return: True se o episódio terminou, False caso contrário.
         """
-        # Verifica se ocorreu um gol
         if self.__frame.ball.x > (self.__field.LENGTH / 2) or self.__frame.ball.x < -(self.__field.LENGTH / 2):
             return True
         return False
@@ -154,9 +181,7 @@ class StrickerEnv(gym.Env):
     def _is_truncated(self):
         """
         Verifica se atingiu o tempo limite do episódio.
-        :return:
         """
-        # Verifica se o número máximo de passos foi atingido
         if self.__current_step >= self.__MAX_STEPS:
             return True
 
