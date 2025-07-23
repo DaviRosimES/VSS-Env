@@ -2,16 +2,16 @@ import random
 import socket
 
 from src.proto.packet_pb2 import Packet
-from src.clients.client import Client
-from src.entities.field import Field
+from src.clients import Client
+from src.entities import Field
 
 
 class ReplacerClient(Client):
     def __init__(self, server_address: str, server_port: int, field_type : str):
         super().__init__(server_address, server_port)
-        self.field : Field = Field.from_type(field_type)
-        self.BALL_MARGIN = 0.02  # Margem para evitar bordas
-        self.ROBOT_MARGIN = 0.04  # Margem para evitar bordas para os robôs em metros
+        self.__field : Field = Field.from_type(field_type)
+        self.__BALL_MARGIN = 0.02  # Margem para evitar bordas [metros]
+        self.__ROBOT_MARGIN = 0.04  # Margem para evitar bordas para os robôs [metros]
         self.connect()
 
     def _connect_to_network(self):
@@ -26,51 +26,27 @@ class ReplacerClient(Client):
         self._client_socket.close()
         #print("[INFO] Replacer desconectado.")
 
-    def send_replacement(self):
+    def send_replacement(self, packet : Packet):
         """Reposiciona a bola e os robôs em posições aleatórias no início do episódio."""
-        packet = Packet()
-        packet.replace.ball.x, packet.replace.ball.y = self.__random_ball_position()
-
-        # Robôs azuis
-        for i in range(3):
-            robot_replacer = packet.replace.robots.add()
-            robot_replacer.position.robot_id = i
-            if i == 2:
-                robot_replacer.position.x, robot_replacer.position.y = self.__random_robot_position()
-            else:
-                robot_replacer.position.x, robot_replacer.position.y = self.__outside_robot_position()
-            robot_replacer.position.orientation = random.uniform(0, 360)
-            robot_replacer.yellowteam = False
-            robot_replacer.turnon = True
-
-        # Robôs amarelos
-        for i in range(3):
-            robot_replacer = packet.replace.robots.add()
-            robot_replacer.position.robot_id = i
-            robot_replacer.position.x, robot_replacer.position.y = self.__outside_robot_position()
-            robot_replacer.position.orientation = random.uniform(0, 360)
-            robot_replacer.yellowteam = True
-            robot_replacer.turnon = True
-
         try:
             self._client_socket.sendall(packet.SerializeToString())
             #print("[INFO] Reposicionamento enviado!")
         except socket.error as e:
             print(f"[ERRO] Falha ao enviar: {e}")
 
-    def __random_ball_position(self):
+    def random_ball_position(self):
         """Gera uma posição aleatória válida dentro do campo para a bola."""
-        x = random.uniform(-self.field.LENGTH / 2 + self.BALL_MARGIN, self.field.LENGTH / 2 - self.BALL_MARGIN)
-        y = random.uniform(-self.field.WIDTH / 2 + self.BALL_MARGIN, self.field.WIDTH / 2 - self.BALL_MARGIN)
+        x = random.uniform(-self.__field.LENGTH / 2 + self.__BALL_MARGIN, self.__field.LENGTH / 2 - self.__BALL_MARGIN)
+        y = random.uniform(-self.__field.WIDTH / 2 + self.__BALL_MARGIN, self.__field.WIDTH / 2 - self.__BALL_MARGIN)
         return x, y
 
-    def __random_robot_position(self):
+    def random_robot_position(self):
         """Gera uma posição aleatória válida dentro do campo para os robôs."""
-        x = random.uniform(-self.field.LENGTH / 2 + self.ROBOT_MARGIN, self.field.LENGTH / 2 - self.ROBOT_MARGIN)
-        y = random.uniform(-self.field.WIDTH / 2 + self.ROBOT_MARGIN, self.field.WIDTH / 2 - self.ROBOT_MARGIN)
+        x = random.uniform(-self.__field.LENGTH / 2 + self.__ROBOT_MARGIN, self.__field.LENGTH / 2 - self.__ROBOT_MARGIN)
+        y = random.uniform(-self.__field.WIDTH / 2 + self.__ROBOT_MARGIN, self.__field.WIDTH / 2 - self.__ROBOT_MARGIN)
         return x, y
 
-    def __outside_robot_position(self):
+    def outside_robot_position(self):
         x = 10
         y = 10
         return x, y
