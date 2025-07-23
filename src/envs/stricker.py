@@ -1,10 +1,12 @@
 import math
 import numpy as np
 import gymnasium as gym
+import random
 
 from src.clients.sim import ActuatorClient, VisionClient, ReplacerClient
 from src.entities import Field, Frame, Robot
 from src.noise import OrnsteinUhlenbeckAction
+from src.proto.packet_pb2 import Packet
 from src.utils import Normalizer
 
 
@@ -62,7 +64,8 @@ class StrickerEnv(gym.Env):
         self.__sent_commands = None
 
         # Envia posições aleatórias para o simulador
-        self.replacer_client.send_replacement()
+        replacer_packet = self.__create_replacement_packet()
+        self.replacer_client.send_replacement(replacer_packet)
 
         # Aguarda alguns frames para garantir que a bola está bem posicionada
         self.__frame = self.vision_client.run_client()
@@ -123,6 +126,34 @@ class StrickerEnv(gym.Env):
             commands.append(Robot(yellow_team=team, id=robot_id, v_left_wheel=v_left, v_right_wheel=v_right))
 
         return commands
+
+    def __create_replacement_packet(self):
+        packet = Packet()
+        packet.replace.ball.x, packet.replace.ball.y = self.replacer_client.random_ball_position()
+
+        # Robôs azuis
+        for i in range(self.__field.NUM_ROBOTS / 2):
+            robot_replacer = packet.replace.robots.add()
+            robot_replacer.position.robot_id = i
+            # Robo controlado (ID_2)
+            if i == 2:
+                robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.random_robot_position()
+            else:
+                robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.outside_robot_position()
+            robot_replacer.position.orientation = random.uniform(0, 360)
+            robot_replacer.yellowteam = False
+            robot_replacer.turnon = True
+
+        # Robôs amarelos
+        for i in range(self.__field.NUM_ROBOTS / 2):
+            robot_replacer = packet.replace.robots.add()
+            robot_replacer.position.robot_id = i
+            robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.outside_robot_position()
+            robot_replacer.position.orientation = random.uniform(0, 360)
+            robot_replacer.yellowteam = True
+            robot_replacer.turnon = True
+
+        return packet
 
     def __get_observation(self):
         ball_x = Normalizer.norm_pos_x(self.__frame.ball.x)
