@@ -2,8 +2,6 @@ import socket
 import numpy as np
 
 from src.proto.packet_pb2 import Packet
-from src.entities import Robot
-from src.noise import OrnsteinUhlenbeckAction
 from src.clients import Client
 
 class ActuatorClient(Client):
@@ -12,12 +10,8 @@ class ActuatorClient(Client):
         super().__init__(server_address, server_port)
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
-        self.MAX_SPEED = 2.0  # Velocidade linear máxima em m/s
+        self.MAX_SPEED = 1.5  # Velocidade linear máxima em m/s
         self.WHEEL_RADIUS = 0.02
-        self.ou_actions = [
-            OrnsteinUhlenbeckAction(action_space=action_space)
-            for _ in range(n_robots_blue + n_robots_yellow)
-        ]
         self.connect()
 
     def _connect_to_network(self):
@@ -35,36 +29,13 @@ class ActuatorClient(Client):
             self._client_socket.close()
             #print("[INFO] Actuator desconectado.")
 
-    def send_actions(self, actions):
+    def send_commands(self, commands):
         """Envia os comandos para o simulador."""
         if not self._is_connected:
             self.connect()
 
-        commands = self.__generate_commands(actions)
         packet = self.__create_packet(commands)
         self.__send_packet(packet)
-
-    def __generate_commands(self, actions):
-        """
-        Gera comandos aletórios de velocidades para os robos não controlados, utiliza-se o processo de
-        Ornstein-Uhlenbeck.
-        Exclui o Robo ID_2, que é o robo no qual estamos controlando.
-        """
-        commands = []
-        # Robô controlado (ID 2)
-        v_left, v_right = self.__actions_to_v_wheels(actions)
-        commands.append(Robot(yellow_team=False, id=2, v_left_wheel=v_left, v_right_wheel=v_right))
-
-        # Outros robôs
-        for i in range(self.n_robots_blue + self.n_robots_yellow):
-            if i == 2:  # Pula o robô controlado
-                continue
-            ou_action = self.ou_actions[i].sample()
-            v_left, v_right = self.__actions_to_v_wheels(ou_action)
-            team = False if i < self.n_robots_blue else True
-            robot_id = i if i < self.n_robots_blue else i - self.n_robots_blue
-            commands.append(Robot(yellow_team=team, id=robot_id, v_left_wheel=v_left, v_right_wheel=v_right))
-        return commands
 
     def __create_packet(self, commands):
         """Cria um pacote a partir dos comandos recebidos."""
@@ -77,7 +48,7 @@ class ActuatorClient(Client):
             robot_cmd.wheel_right = cmd.v_right_wheel
         return packet
 
-    def __actions_to_v_wheels(self, actions):
+    def actions_to_v_wheels(self, actions):
         """Converte ações em velocidades das rodas (rad/s)."""
         left = np.clip(actions[0] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED) / self.WHEEL_RADIUS
         right = np.clip(actions[1] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED) / self.WHEEL_RADIUS
