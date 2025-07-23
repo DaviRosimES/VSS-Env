@@ -8,7 +8,8 @@ class Field:
             "CENTER_RADIUS": 0.25,
             "PENALTY_WIDTH": 0.5,
             "PENALTY_DEPTH": 0.15,
-            "PENALTY_POINT": 0.375
+            "PENALTY_POINT": 0.375,
+            "NUM_ROBOTS": 10,
         },
         "B": {
             "WIDTH": 1.3,
@@ -18,7 +19,8 @@ class Field:
             "CENTER_RADIUS": 0.2,
             "PENALTY_WIDTH": 0.7,
             "PENALTY_DEPTH": 0.15,
-            "PENALTY_POINT": 0.375
+            "PENALTY_POINT": 0.375,
+            "NUM_ROBOTS": 6
         }
     }
 
@@ -34,6 +36,7 @@ class Field:
         self.PENALTY_WIDTH = self._FIELDS[field_type]["PENALTY_WIDTH"]
         self.PENALTY_DEPTH = self._FIELDS[field_type]["PENALTY_DEPTH"]
         self.PENALTY_POINT = self._FIELDS[field_type]["PENALTY_POINT"]
+        self.NUM_ROBOTS = self._FIELDS[field_type]["NUM_ROBOTS"]
 
     @classmethod
     def from_type(cls, field_type: str):
