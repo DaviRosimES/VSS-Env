@@ -5,7 +5,6 @@ import random
 
 from vss_env.clients.sim import ActuatorClient, VisionClient, ReplacerClient
 from vss_env.entities import Field, Frame, Robot
-from vss_env.noise import OrnsteinUhlenbeckAction
 from vss_env.proto.packet_pb2 import Packet
 from vss_env.utils import Normalizer
 
@@ -17,7 +16,6 @@ class StrickerEnv(gym.Env):
         self.__frame: Frame = Frame()
         self.__field: Field = Field.from_type("B")
         self.__previous_ball_potential = None
-        self.__sent_commands = None
 
         # Constantes de tempo
         self.__TIME_STEP = 1 / 60
@@ -42,11 +40,6 @@ class StrickerEnv(gym.Env):
             dtype=np.float32
         )
 
-        self.__ou_actions = [
-            OrnsteinUhlenbeckAction(action_space=self.action_space)
-            for _ in range(6)
-        ]
-
         # Clients de comunicação com o FIRASim
         self.actuator_client = ActuatorClient("127.0.0.1", 20011, action_space=self.action_space)
         self.replacer_client = ReplacerClient("127.0.0.1", 20011, "B")
@@ -61,7 +54,6 @@ class StrickerEnv(gym.Env):
         """
         self.__current_step = 0
         self.__previous_ball_potential = None
-        self.__sent_commands = None
 
         # Envia posições aleatórias para o simulador
         replacer_packet = self.__create_replacement_packet()
@@ -76,7 +68,6 @@ class StrickerEnv(gym.Env):
         # Envia os comandos para todos os robôs
         commands = self.__convert_actions_to_commands(actions)
         self.actuator_client.send_commands(commands)
-        self.__sent_commands = commands
 
         # Aguarda o próximo frame do simulador
         self.__frame = self.vision_client.run_client()
@@ -109,20 +100,19 @@ class StrickerEnv(gym.Env):
 
     def __convert_actions_to_commands(self, actions: dict) -> list:
         commands = []
-        num_blue_robots = 3
 
         # Robô controlado (ID 2)
         v_left, v_right = self.actuator_client.actions_to_v_wheels(actions)
         commands.append(Robot(yellow_team=False, id=2, v_left_wheel=v_left, v_right_wheel=v_right))
 
         # Outros robôs
-        for i in range(num_blue_robots * 2):
+        for i in range(int(self.__field.NUM_ROBOTS / 2)):
             if i == 2:  # Pula o robô controlado
                 continue
-            ou_action = self.__ou_actions[i].sample()
-            v_left, v_right = self.actuator_client.actions_to_v_wheels(ou_action)
-            team = False if i < num_blue_robots else True
-            robot_id = i if i < num_blue_robots else i - num_blue_robots
+            v_left = 0.0
+            v_right = 0.0
+            team = False if i < int(self.__field.NUM_ROBOTS / 2) else True
+            robot_id = i if i < int(self.__field.NUM_ROBOTS / 2) else i - int(self.__field.NUM_ROBOTS / 2)
             commands.append(Robot(yellow_team=team, id=robot_id, v_left_wheel=v_left, v_right_wheel=v_right))
 
         return commands
@@ -132,7 +122,7 @@ class StrickerEnv(gym.Env):
         packet.replace.ball.x, packet.replace.ball.y = self.replacer_client.random_ball_position()
 
         # Robôs azuis
-        for i in range(self.__field.NUM_ROBOTS / 2):
+        for i in range(int(self.__field.NUM_ROBOTS / 2)):
             robot_replacer = packet.replace.robots.add()
             robot_replacer.position.robot_id = i
             # Robo controlado (ID_2)
@@ -145,7 +135,7 @@ class StrickerEnv(gym.Env):
             robot_replacer.turnon = True
 
         # Robôs amarelos
-        for i in range(self.__field.NUM_ROBOTS / 2):
+        for i in range(int(self.__field.NUM_ROBOTS / 2)):
             robot_replacer = packet.replace.robots.add()
             robot_replacer.position.robot_id = i
             robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.outside_robot_position()
@@ -189,13 +179,11 @@ class StrickerEnv(gym.Env):
             # Componentes existentes
             grad_ball_potential = self.__ball_grad()
             move_reward = self.__move_reward()
-            energy_penalty = self.__energy_penalty()
 
             # Recompensa total
             reward = (
                     self.__W_MOVE * move_reward
                     + self.__W_BALL_GRAD * grad_ball_potential
-                    + self.__W_ENERGY * energy_penalty
             )
 
         return reward
@@ -257,15 +245,3 @@ class StrickerEnv(gym.Env):
         move_reward = np.dot(robot_ball, robot_vel)
         move_reward = np.clip(move_reward / 0.4, -5.0, 5.0)
         return move_reward
-
-    def __energy_penalty(self):
-        """
-        Calcula a penalidade de energia com base nas velocidades das rodas.
-        """
-        if self.__sent_commands is None:
-            return 0
-
-        en_penalty_1 = abs(self.__sent_commands[0])
-        en_penalty_2 = abs(self.__sent_commands[1])
-        energy_penalty = -(en_penalty_1 + en_penalty_2)
-        return energy_penalty
