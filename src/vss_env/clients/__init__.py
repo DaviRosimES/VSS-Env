@@ -1,1 +1,1 @@
-from .client import Client
+from vss_env.clients.client import Client
