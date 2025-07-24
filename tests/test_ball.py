@@ -1,5 +1,5 @@
 import unittest
-from src.entities import Ball
+from vss_env.entities.ball import Ball
 
 class TestBall(unittest.TestCase):
 

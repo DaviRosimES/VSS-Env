@@ -1,5 +1,5 @@
 import numpy as np
-from src.entities.field import Field
+from vss_env.entities import Field
 
 class Normalizer:
     NORM_BOUND = 1.0

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68.2.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vss-env"
+version = "1.0.1"
+description = "Framework para desenvolvimento de técnicas de Reinforcement Learning para futebol de robos."
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+license = { file = "LICENSE.md" }
+authors = [
+    { name = "Davi Rosim", email = "davi.rosim@ges.inatel.br" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+
+dependencies = [
+    "cloudpickle==3.1.0",
+    "Farama-Notifications==0.0.4",
+    "grpcio==1.69.0",
+    "gymnasium==1.0.0",
+    "importlib-metadata==8.5.0",
+    "numpy~=2.2.3",
+    "protobuf==3.20.3",
+    "six==1.17.0",
+    "typing-extensions==4.12.2",
+    "zipp==3.21.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=8.3.5"
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["vss_env*"]
+

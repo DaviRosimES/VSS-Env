@@ -1,9 +1,9 @@
 import random
 import socket
 
-from src.proto.packet_pb2 import Packet
-from src.clients import Client
-from src.entities import Field
+from vss_env.proto.packet_pb2 import Packet
+from vss_env.clients import Client
+from vss_env.entities import Field
 
 
 class ReplacerClient(Client):

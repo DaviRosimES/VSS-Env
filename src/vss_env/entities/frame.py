@@ -1,6 +1,6 @@
 from typing import Dict
-from src.entities.robot import Robot
-from src.entities.ball import Ball
+from vss_env.entities.robot import Robot
+from vss_env.entities.ball import Ball
 
 
 class Frame:
