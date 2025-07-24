@@ -211,7 +211,7 @@ class StrickerEnv(gym.Env):
 
     def __uvf_reward(self) -> float:
         ball = np.array([self.__frame.ball.x, self.__frame.ball.y])
-        uvf = UVF(field_width=self.__field.WIDTH, field_height=self.__field.LENGTH)
+        uvf = UVF(field_width=self.__field.WIDTH, field_lengtht=self.__field.LENGTH)
         opponents = self.__frame.yellow_robots
 
         robot = self.__frame.blue_robots.get(2)
