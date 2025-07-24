@@ -1,5 +1,5 @@
 import unittest
-from src import Robot
+from vss_env.entities.robot import Robot
 
 class TestRobot(unittest.TestCase):
 

@@ -1,5 +1,5 @@
 import unittest
-from src import Field  # Substitua pelo nome do seu módulo
+from vss_env.entities.field import Field
 
 class TestField(unittest.TestCase):
 

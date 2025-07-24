@@ -1,5 +1,5 @@
 import unittest
-from src import Normalizer
+from vss_env.utils.norm import Normalizer
 
 
 class TestNormalizer(unittest.TestCase):
