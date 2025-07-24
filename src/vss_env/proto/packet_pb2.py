@@ -11,11 +11,8 @@ from google.protobuf import symbol_database as _symbol_database
 
 _sym_db = _symbol_database.Default()
 
-
-from src.proto import command_pb2 as command__pb2
-from src.proto import replacement_pb2 as replacement__pb2
-from src.proto import common_pb2 as common__pb2
-
+from src.vss_env.proto import replacement_pb2 as replacement__pb2, common_pb2 as common__pb2, \
+    command_pb2 as command__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='packet.proto',

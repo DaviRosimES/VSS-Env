@@ -1,5 +1,5 @@
 import unittest
-from src.entities import Field  # Substitua pelo nome do seu módulo
+from src import Field  # Substitua pelo nome do seu módulo
 
 class TestField(unittest.TestCase):
 

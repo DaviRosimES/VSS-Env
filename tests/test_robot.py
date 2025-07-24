@@ -1,5 +1,5 @@
 import unittest
-from src.entities import Robot
+from src import Robot
 
 class TestRobot(unittest.TestCase):
 

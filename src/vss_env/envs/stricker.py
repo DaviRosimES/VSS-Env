@@ -3,11 +3,11 @@ import numpy as np
 import gymnasium as gym
 import random
 
-from src.clients.sim import ActuatorClient, VisionClient, ReplacerClient
-from src.entities import Field, Frame, Robot
-from src.noise import OrnsteinUhlenbeckAction
-from src.proto.packet_pb2 import Packet
-from src.utils import Normalizer
+from vss_env.clients.sim import ActuatorClient, VisionClient, ReplacerClient
+from vss_env.entities import Field, Frame, Robot
+from vss_env.noise import OrnsteinUhlenbeckAction
+from vss_env.proto.packet_pb2 import Packet
+from vss_env.utils import Normalizer
 
 
 class StrickerEnv(gym.Env):

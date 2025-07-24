@@ -1,12 +1,11 @@
 import socket
 import threading
 
-import numpy as np
 from google.protobuf.message import DecodeError
 
-from src.clients import Client
-from src.entities import Frame, Robot, Ball, Field
-from src.proto.packet_pb2 import Environment
+from vss_env.clients import Client
+from vss_env.entities import Frame, Robot, Ball, Field
+from vss_env.proto.packet_pb2 import Environment
 
 
 class VisionClient(Client):

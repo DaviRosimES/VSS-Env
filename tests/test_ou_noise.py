@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from src.noise.OUNoise import OrnsteinUhlenbeckAction
+from src import OrnsteinUhlenbeckAction
 
 # Classe que simula um action_space para teste
 class MockActionSpace:

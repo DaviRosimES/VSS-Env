@@ -1,6 +1,5 @@
 import unittest
-import numpy as np
-from src.utils import Normalizer
+from src import Normalizer
 
 
 class TestNormalizer(unittest.TestCase):

@@ -1,8 +1,8 @@
 import socket
 import numpy as np
 
-from src.proto.packet_pb2 import Packet
-from src.clients import Client
+from vss_env.proto.packet_pb2 import Packet
+from vss_env.clients import Client
 
 class ActuatorClient(Client):
     def __init__(self, server_address: str, server_port: int, action_space, n_robots_blue: int = 3,
