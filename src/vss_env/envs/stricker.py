@@ -7,6 +7,7 @@ from vss_env.clients.sim import ActuatorClient, VisionClient, ReplacerClient
 from vss_env.entities import Field, Frame, Robot
 from vss_env.proto.packet_pb2 import Packet
 from vss_env.utils import Normalizer
+from vss_env.uvf import UVF
 
 
 class StrickerEnv(gym.Env):
@@ -24,8 +25,8 @@ class StrickerEnv(gym.Env):
 
         # Pesos para as recompensas
         self.__W_MOVE = 0.2
-        self.__W_BALL_GRAD = 0.8
-        self.__W_ENERGY = 2e-4
+        self.__W_BALL_GRAD = 0.2
+        self.__W_UVF = 0.6
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -179,11 +180,13 @@ class StrickerEnv(gym.Env):
             # Componentes existentes
             grad_ball_potential = self.__ball_grad()
             move_reward = self.__move_reward()
+            uvf_reward = self.__uvf_reward()
 
             # Recompensa total
             reward = (
                     self.__W_MOVE * move_reward
                     + self.__W_BALL_GRAD * grad_ball_potential
+                    + self.__W_UVF * uvf_reward
             )
 
         return reward
@@ -205,6 +208,40 @@ class StrickerEnv(gym.Env):
             return True
 
         return False
+
+    def __uvf_reward(self) -> float:
+        ball = np.array([self.__frame.ball.x, self.__frame.ball.y])
+        uvf = UVF(field_width=self.__field.WIDTH, field_height=self.__field.LENGTH)
+        opponents = self.__frame.yellow_robots
+
+        robot = self.__frame.blue_robots.get(2)
+
+        robot_pos = np.array([robot.x, robot.y])
+        robot_vel = np.array([robot.v_x, robot.v_y])
+
+        obstacles = []
+        v_obstacles = []
+
+        for opp in opponents.values():
+            obstacles.append(np.array([opp.x, opp.y]))
+            v_obstacles.append(np.array([opp.v_x, opp.v_y]))
+
+        phi = uvf.get_phi(
+            origin=robot_pos,
+            target=ball,
+            target_ori=0.0,
+            v_robot=robot_vel,
+            obstacles=obstacles,
+            v_obstacles=v_obstacles
+        )
+
+        uvf_dir = np.array([np.cos(phi), np.sin(phi)])
+        uvf_dir /= np.linalg.norm(uvf_dir)
+        robot_dir = robot_vel / np.linalg.norm(robot_vel)
+
+        alignment = np.dot(uvf_dir, robot_dir)
+
+        return alignment
 
     def __ball_grad(self):
         """
