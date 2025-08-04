@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vss-env"
-version = "1.1.1"
+version = "1.1.2"
 description = "Framework para desenvolvimento de técnicas de Reinforcement Learning para futebol de robos."
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
