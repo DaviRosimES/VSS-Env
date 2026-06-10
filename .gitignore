@@ -1,6 +1,15 @@
 # Ignore ambientes virtuais
 venv/
+.venv/
 .env/
+env/
+.python-version
+
+# Ignore arquivos de build/distribuição Python
+*.egg-info/
+dist/
+build/
+*.egg
 
 # Ignore arquivos compilados Python
 __pycache__/
