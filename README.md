@@ -19,7 +19,7 @@ Abaixo está um exemplo simples de como utilizar o VSS-Env:
 import gymnasium as gym
 import VSS-Env
 
-env = gym.make("Stricker-v0")
+env = gym.make("Striker-v0")
 state = env.reset()
 
 done = False

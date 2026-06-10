@@ -14,6 +14,10 @@ class SimConfig:
     max_steps: int = 600
     fps: int = 60
 
+    # Obstáculos (robôs amarelos estáticos para o atacante desviar).
+    # 0 = atacante sozinho no campo com a bola.
+    num_obstacles: int = 0
+
     # Pesos das recompensas
     w_move: float = 0.2
     w_ball_grad: float = 0.2
