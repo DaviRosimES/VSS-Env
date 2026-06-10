@@ -6,12 +6,12 @@ from vss_env.clients import Client
 
 class ActuatorClient(Client):
     def __init__(self, server_address: str, server_port: int, action_space, n_robots_blue: int = 3,
-                 n_robots_yellow: int = 3):
+                 n_robots_yellow: int = 3, max_speed: float = 1.5, wheel_radius: float = 0.02):
         super().__init__(server_address, server_port)
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
-        self.MAX_SPEED = 1.5  # Velocidade linear máxima em m/s
-        self.WHEEL_RADIUS = 0.02
+        self.MAX_SPEED = max_speed
+        self.WHEEL_RADIUS = wheel_radius
         self.connect()
 
     def _connect_to_network(self):
