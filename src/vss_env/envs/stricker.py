@@ -1,9 +1,10 @@
 import math
-import numpy as np
-import gymnasium as gym
 import random
 
-from vss_env.clients.sim import ActuatorClient, VisionClient, ReplacerClient
+import gymnasium as gym
+import numpy as np
+
+from vss_env.clients.sim import ActuatorClient, ReplacerClient, VisionClient
 from vss_env.config import SimConfig
 from vss_env.entities import Field, Frame, Robot
 from vss_env.proto.packet_pb2 import Packet
@@ -31,26 +32,25 @@ class StrickerEnv(gym.Env):
         self.__W_UVF = config.w_uvf
 
         self.action_space = gym.spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(2,),
-            dtype=np.float32
+            low=-1.0, high=1.0, shape=(2,), dtype=np.float32
         )
         self.observation_space = gym.spaces.Box(
-            low=-1,
-            high=1,
-            shape=(11,),
-            dtype=np.float32
+            low=-1, high=1, shape=(11,), dtype=np.float32
         )
 
         self.actuator_client = ActuatorClient(
-            config.sim_ip, config.sim_port,
+            config.sim_ip,
+            config.sim_port,
             action_space=self.action_space,
             max_speed=config.max_speed,
             wheel_radius=config.wheel_radius,
         )
-        self.replacer_client = ReplacerClient(config.sim_ip, config.sim_port, config.field_type)
-        self.vision_client = VisionClient(config.vision_ip, config.vision_port, config.field_type)
+        self.replacer_client = ReplacerClient(
+            config.sim_ip, config.sim_port, config.field_type
+        )
+        self.vision_client = VisionClient(
+            config.vision_ip, config.vision_port, config.field_type
+        )
 
     def reset(self, seed=None, options=None):
         """
@@ -110,7 +110,9 @@ class StrickerEnv(gym.Env):
 
         # Robô controlado (ID 2)
         v_left, v_right = self.actuator_client.actions_to_v_wheels(actions)
-        commands.append(Robot(yellow_team=False, id=2, v_left_wheel=v_left, v_right_wheel=v_right))
+        commands.append(
+            Robot(yellow_team=False, id=2, v_left_wheel=v_left, v_right_wheel=v_right)
+        )
 
         # Outros robôs
         for i in range(int(self.__field.NUM_ROBOTS / 2)):
@@ -119,14 +121,27 @@ class StrickerEnv(gym.Env):
             v_left = 0.0
             v_right = 0.0
             team = False if i < int(self.__field.NUM_ROBOTS / 2) else True
-            robot_id = i if i < int(self.__field.NUM_ROBOTS / 2) else i - int(self.__field.NUM_ROBOTS / 2)
-            commands.append(Robot(yellow_team=team, id=robot_id, v_left_wheel=v_left, v_right_wheel=v_right))
+            robot_id = (
+                i
+                if i < int(self.__field.NUM_ROBOTS / 2)
+                else i - int(self.__field.NUM_ROBOTS / 2)
+            )
+            commands.append(
+                Robot(
+                    yellow_team=team,
+                    id=robot_id,
+                    v_left_wheel=v_left,
+                    v_right_wheel=v_right,
+                )
+            )
 
         return commands
 
     def __create_replacement_packet(self):
         packet = Packet()
-        packet.replace.ball.x, packet.replace.ball.y = self.replacer_client.random_ball_position()
+        packet.replace.ball.x, packet.replace.ball.y = (
+            self.replacer_client.random_ball_position()
+        )
 
         # Robôs azuis
         for i in range(int(self.__field.NUM_ROBOTS / 2)):
@@ -134,9 +149,13 @@ class StrickerEnv(gym.Env):
             robot_replacer.position.robot_id = i
             # Robo controlado (ID_2)
             if i == 2:
-                robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.random_robot_position()
+                robot_replacer.position.x, robot_replacer.position.y = (
+                    self.replacer_client.random_robot_position()
+                )
             else:
-                robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.outside_robot_position()
+                robot_replacer.position.x, robot_replacer.position.y = (
+                    self.replacer_client.outside_robot_position()
+                )
             robot_replacer.position.orientation = random.uniform(0, 360)
             robot_replacer.yellowteam = False
             robot_replacer.turnon = True
@@ -145,7 +164,9 @@ class StrickerEnv(gym.Env):
         for i in range(int(self.__field.NUM_ROBOTS / 2)):
             robot_replacer = packet.replace.robots.add()
             robot_replacer.position.robot_id = i
-            robot_replacer.position.x, robot_replacer.position.y = self.replacer_client.outside_robot_position()
+            robot_replacer.position.x, robot_replacer.position.y = (
+                self.replacer_client.outside_robot_position()
+            )
             robot_replacer.position.orientation = random.uniform(0, 360)
             robot_replacer.yellowteam = True
             robot_replacer.turnon = True
@@ -165,16 +186,22 @@ class StrickerEnv(gym.Env):
         robot_orientation = robot.orientation
         robot_v_theta = Normalizer.norm_w(robot.v_orientation)
 
-        return np.array([
-            ball_x, ball_y,
-            ball_vx, ball_vy,
-            robot_x, robot_y,
-            robot_vx,robot_vy,
-            np.sin(robot_orientation),
-            np.cos(robot_orientation),
-            robot_v_theta
-        ],dtype=np.float32)
-
+        return np.array(
+            [
+                ball_x,
+                ball_y,
+                ball_vx,
+                ball_vy,
+                robot_x,
+                robot_y,
+                robot_vx,
+                robot_vy,
+                np.sin(robot_orientation),
+                np.cos(robot_orientation),
+                robot_v_theta,
+            ],
+            dtype=np.float32,
+        )
 
     def _calculate_reward(self):
         # Recompensa/Penalidade por gol
@@ -190,9 +217,9 @@ class StrickerEnv(gym.Env):
 
             # Recompensa total
             reward = (
-                    self.__W_MOVE * move_reward
-                    + self.__W_BALL_GRAD * grad_ball_potential
-                    + self.__W_UVF * uvf_reward
+                self.__W_MOVE * move_reward
+                + self.__W_BALL_GRAD * grad_ball_potential
+                + self.__W_UVF * uvf_reward
             )
 
         return reward
@@ -202,7 +229,9 @@ class StrickerEnv(gym.Env):
         Verifica se aconteceu um gol no episódio.
         :return: True se o episódio terminou, False caso contrário.
         """
-        if self.__frame.ball.x > (self.__field.LENGTH / 2) or self.__frame.ball.x < -(self.__field.LENGTH / 2):
+        if self.__frame.ball.x > (self.__field.LENGTH / 2) or self.__frame.ball.x < -(
+            self.__field.LENGTH / 2
+        ):
             return True
         return False
 
@@ -238,7 +267,7 @@ class StrickerEnv(gym.Env):
             target_ori=0.0,
             v_robot=robot_vel,
             obstacles=obstacles,
-            v_obstacles=v_obstacles
+            v_obstacles=v_obstacles,
         )
 
         robot_speed = np.linalg.norm(robot_vel)
@@ -263,8 +292,8 @@ class StrickerEnv(gym.Env):
         dx_a = (half_length - self.__frame.ball.x) * 100
         dy = self.__frame.ball.y * 100
 
-        dist_1 = -math.sqrt(dx_a ** 2 + 2 * dy ** 2)
-        dist_2 = math.sqrt(dx_d ** 2 + 2 * dy ** 2)
+        dist_1 = -math.sqrt(dx_a**2 + 2 * dy**2)
+        dist_2 = math.sqrt(dx_d**2 + 2 * dy**2)
         ball_potential = ((dist_1 + dist_2) / length_cm - 1) / 2
 
         grad_ball_potential = 0
@@ -280,8 +309,12 @@ class StrickerEnv(gym.Env):
         Calcula a recompensa pelo movimento em direção à bola.
         """
         ball = np.array([self.__frame.ball.x, self.__frame.ball.y])
-        robot = np.array([self.__frame.blue_robots[2].x, self.__frame.blue_robots[2].y])  # Robô 2
-        robot_vel = np.array([self.__frame.blue_robots[2].v_x, self.__frame.blue_robots[2].v_y])
+        robot = np.array(
+            [self.__frame.blue_robots[2].x, self.__frame.blue_robots[2].y]
+        )  # Robô 2
+        robot_vel = np.array(
+            [self.__frame.blue_robots[2].v_x, self.__frame.blue_robots[2].v_y]
+        )
 
         robot_ball = ball - robot
         robot_ball_norm = np.linalg.norm(robot_ball)

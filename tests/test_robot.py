@@ -1,8 +1,8 @@
 import unittest
 from vss_env.entities.robot import Robot
 
-class TestRobot(unittest.TestCase):
 
+class TestRobot(unittest.TestCase):
     def test_default_initialization(self):
         robot = Robot()
         self.assertIsNone(robot.id)
@@ -27,7 +27,7 @@ class TestRobot(unittest.TestCase):
             v_y=0.2,
             v_orientation=0.05,
             v_left_wheel=0.3,
-            v_right_wheel=0.4
+            v_right_wheel=0.4,
         )
 
         self.assertEqual(robot.id, 1)
@@ -64,5 +64,6 @@ class TestRobot(unittest.TestCase):
         self.assertIn("Robot(id=3", repr(robot))
         self.assertIn("yellow_team=False", repr(robot))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

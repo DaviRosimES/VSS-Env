@@ -71,5 +71,5 @@ class TestNormalizer(unittest.TestCase):
         self.assertEqual(Normalizer.FIELD_WIDTH, 1.3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

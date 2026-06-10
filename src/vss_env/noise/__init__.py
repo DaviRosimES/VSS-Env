@@ -1,1 +1,1 @@
-from vss_env.noise.OUNoise import OrnsteinUhlenbeckAction
+from vss_env.noise.OUNoise import OrnsteinUhlenbeckAction as OrnsteinUhlenbeckAction

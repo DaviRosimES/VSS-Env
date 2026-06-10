@@ -11,7 +11,7 @@ def constrain_angle(x):
 
 
 def get_gauss(r, delta):
-    return np.exp(-(r ** 2) / (2 * (delta ** 2)))
+    return np.exp(-(r**2) / (2 * (delta**2)))
 
 
 class UVF:
@@ -19,11 +19,11 @@ class UVF:
         self.field_width = field_width
         self.field_length = field_length
 
-        self.k_kr = 0.25     # curvatura da espiral
-        self.k_de = 0.05     # raio de transição da espiral
+        self.k_kr = 0.25  # curvatura da espiral
+        self.k_de = 0.05  # raio de transição da espiral
         self.k_delta = 0.1  # largura da transição gaussiana
-        self.k_dmin = 0.05   # raio mínimo de ativação da repulsão
-        self.k_o = 0.82      # peso da velocidade relativa
+        self.k_dmin = 0.05  # raio mínimo de ativação da repulsão
+        self.k_o = 0.82  # peso da velocidade relativa
 
     def get_phih(self, p, tx, ty, ccw):
         signal = -1 if ccw else 1
@@ -33,7 +33,9 @@ class UVF:
         ro = np.hypot(dx, dy)
 
         if ro > self.k_de:
-            phih = theta + signal * (PI / 2) * (2 - ((self.k_de + self.k_kr) / (ro + self.k_kr)))
+            phih = theta + signal * (PI / 2) * (
+                2 - ((self.k_de + self.k_kr) / (ro + self.k_kr))
+            )
         else:
             phih = theta + signal * (PI / 2) * np.sqrt(ro / self.k_de)
         return phih
@@ -44,16 +46,24 @@ class UVF:
         hh = self.field_length / 2
 
         walls = [
-            (0.0,  hh),  # superior
+            (0.0, hh),  # superior
             (0.0, -hh),  # inferior
             (-hw, 0.0),  # esquerda
-            ( hw, 0.0)   # direita
+            (hw, 0.0),  # direita
         ]
         obstacles += walls
         v_obstacles += [np.zeros(2) for _ in walls]
         return obstacles, v_obstacles
 
-    def get_phi(self, origin, target, target_ori, obstacles, v_robot=np.array([0.0, 0.0]), v_obstacles=None):
+    def get_phi(
+        self,
+        origin,
+        target,
+        target_ori,
+        obstacles,
+        v_robot=np.array([0.0, 0.0]),
+        v_obstacles=None,
+    ):
         target_ori = constrain_angle(target_ori)
         rot = PI - target_ori
 
@@ -113,17 +123,20 @@ class UVF:
                 diff = abs(phi_auf - phi_tuf)
                 if diff > PI:
                     diff = abs(2 * PI - diff)
-                cross = np.cross([np.cos(phi_auf), np.sin(phi_auf)], [np.cos(phi_tuf), np.sin(phi_tuf)])
+                cross = np.cross(
+                    [np.cos(phi_auf), np.sin(phi_auf)],
+                    [np.cos(phi_tuf), np.sin(phi_tuf)],
+                )
                 sgn = -1.0 if cross > 0 else 1.0
                 phi = phi_tuf + sgn * diff * gauss
 
                 vec_obs = obs_r - target_r
                 if auf[0] < 0:
                     if not (
-                            (vec_obs[1] > 0 > auf[1] and vec_obs[0] > 0) or
-                            (vec_obs[1] < 0 < vec_obs[0] and auf[1] > 0) or
-                            (vec_obs[1] > 0 and auf[1] >= 0) or
-                            (vec_obs[1] < 0 and auf[1] <= 0)
+                        (vec_obs[1] > 0 > auf[1] and vec_obs[0] > 0)
+                        or (vec_obs[1] < 0 < vec_obs[0] and auf[1] > 0)
+                        or (vec_obs[1] > 0 and auf[1] >= 0)
+                        or (vec_obs[1] < 0 and auf[1] <= 0)
                     ):
                         phi = phi_tuf + (phi_auf - phi_tuf) * gauss
             phi_tuf = phi

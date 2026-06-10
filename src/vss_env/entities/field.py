@@ -20,13 +20,15 @@ class Field:
             "PENALTY_WIDTH": 0.7,
             "PENALTY_DEPTH": 0.15,
             "PENALTY_POINT": 0.375,
-            "NUM_ROBOTS": 6
-        }
+            "NUM_ROBOTS": 6,
+        },
     }
 
     def __init__(self, field_type: str):
         if field_type not in self._FIELDS:
-            raise ValueError(f"Tipo de campo '{field_type}' inválido. Escolha entre {list(self._FIELDS.keys())}")
+            raise ValueError(
+                f"Tipo de campo '{field_type}' inválido. Escolha entre {list(self._FIELDS.keys())}"
+            )
 
         self.WIDTH = self._FIELDS[field_type]["WIDTH"]
         self.LENGTH = self._FIELDS[field_type]["LENGTH"]

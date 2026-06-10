@@ -1,8 +1,8 @@
 import unittest
 from vss_env.entities.field import Field
 
-class TestField(unittest.TestCase):
 
+class TestField(unittest.TestCase):
     def test_field_type_a_attributes(self):
         field = Field("A")
         self.assertAlmostEqual(field.WIDTH, 1.8)
@@ -35,5 +35,6 @@ class TestField(unittest.TestCase):
         self.assertIsInstance(field, Field)
         self.assertAlmostEqual(field.WIDTH, 1.8)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

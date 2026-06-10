@@ -1,8 +1,8 @@
 import unittest
 from vss_env.entities.ball import Ball
 
-class TestBall(unittest.TestCase):
 
+class TestBall(unittest.TestCase):
     def test_default_initialization(self):
         ball = Ball()
         self.assertIsNone(ball.x)
@@ -38,5 +38,6 @@ class TestBall(unittest.TestCase):
         ball2 = Ball(x=2)
         self.assertNotEqual(ball1, ball2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
