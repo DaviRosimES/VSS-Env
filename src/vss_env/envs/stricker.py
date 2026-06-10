@@ -4,6 +4,7 @@ import gymnasium as gym
 import random
 
 from vss_env.clients.sim import ActuatorClient, VisionClient, ReplacerClient
+from vss_env.config import SimConfig
 from vss_env.entities import Field, Frame, Robot
 from vss_env.proto.packet_pb2 import Packet
 from vss_env.utils import Normalizer
@@ -13,20 +14,21 @@ from vss_env.uvf import UVF
 class StrickerEnv(gym.Env):
     metadata = {"render_modes": ["None"], "render_fps": 0}
 
-    def __init__(self):
+    def __init__(self, config: SimConfig = None):
+        if config is None:
+            config = SimConfig()
+
         self.__frame: Frame = Frame()
-        self.__field: Field = Field.from_type("B")
+        self.__field: Field = Field.from_type(config.field_type)
         self.__previous_ball_potential = None
 
-        # Constantes de tempo
-        self.__TIME_STEP = 1 / 60
+        self.__TIME_STEP = 1 / config.fps
         self.__current_step = 0
-        self.__MAX_STEPS = 600  # 10s * 60fps
+        self.__MAX_STEPS = config.max_steps
 
-        # Pesos para as recompensas
-        self.__W_MOVE = 0.2
-        self.__W_BALL_GRAD = 0.2
-        self.__W_UVF = 0.6
+        self.__W_MOVE = config.w_move
+        self.__W_BALL_GRAD = config.w_ball_grad
+        self.__W_UVF = config.w_uvf
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -41,10 +43,14 @@ class StrickerEnv(gym.Env):
             dtype=np.float32
         )
 
-        # Clients de comunicação com o FIRASim
-        self.actuator_client = ActuatorClient("127.0.0.1", 20011, action_space=self.action_space)
-        self.replacer_client = ReplacerClient("127.0.0.1", 20011, "B")
-        self.vision_client = VisionClient("224.0.0.1", 10002, "B")
+        self.actuator_client = ActuatorClient(
+            config.sim_ip, config.sim_port,
+            action_space=self.action_space,
+            max_speed=config.max_speed,
+            wheel_radius=config.wheel_radius,
+        )
+        self.replacer_client = ReplacerClient(config.sim_ip, config.sim_port, config.field_type)
+        self.vision_client = VisionClient(config.vision_ip, config.vision_port, config.field_type)
 
     def reset(self, seed=None, options=None):
         """
@@ -235,13 +241,14 @@ class StrickerEnv(gym.Env):
             v_obstacles=v_obstacles
         )
 
+        robot_speed = np.linalg.norm(robot_vel)
+        if robot_speed == 0:
+            return 0.0
+
         uvf_dir = np.array([np.cos(phi), np.sin(phi)])
-        uvf_dir /= np.linalg.norm(uvf_dir)
-        robot_dir = robot_vel / np.linalg.norm(robot_vel)
+        robot_dir = robot_vel / robot_speed
 
-        alignment = np.dot(uvf_dir, robot_dir)
-
-        return alignment
+        return float(np.dot(uvf_dir, robot_dir))
 
     def __ball_grad(self):
         """
@@ -277,7 +284,10 @@ class StrickerEnv(gym.Env):
         robot_vel = np.array([self.__frame.blue_robots[2].v_x, self.__frame.blue_robots[2].v_y])
 
         robot_ball = ball - robot
-        robot_ball = robot_ball / np.linalg.norm(robot_ball)
+        robot_ball_norm = np.linalg.norm(robot_ball)
+        if robot_ball_norm == 0:
+            return 0.0
+        robot_ball = robot_ball / robot_ball_norm
 
         move_reward = np.dot(robot_ball, robot_vel)
         move_reward = np.clip(move_reward / 0.4, -5.0, 5.0)
