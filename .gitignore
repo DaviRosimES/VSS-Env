@@ -21,6 +21,10 @@ __pycache__/
 .idea/
 *.swp
 
+# Ignore cache de type checkers
+.mypy_cache/
+.ruff_cache/
+
 # Ignore logs e arquivos de debug
 *.log
 *.tmp
