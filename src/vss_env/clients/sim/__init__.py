@@ -1,3 +1,3 @@
-from vss_env.clients.sim.actuator import ActuatorClient
-from vss_env.clients.sim.vision import VisionClient
-from vss_env.clients.sim.replacer import ReplacerClient
+from vss_env.clients.sim.actuator import ActuatorClient as ActuatorClient
+from vss_env.clients.sim.vision import VisionClient as VisionClient
+from vss_env.clients.sim.replacer import ReplacerClient as ReplacerClient

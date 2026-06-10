@@ -1,12 +1,22 @@
 import socket
+
 import numpy as np
 
-from vss_env.proto.packet_pb2 import Packet
 from vss_env.clients import Client
+from vss_env.proto.packet_pb2 import Packet
+
 
 class ActuatorClient(Client):
-    def __init__(self, server_address: str, server_port: int, action_space, n_robots_blue: int = 3,
-                 n_robots_yellow: int = 3, max_speed: float = 1.5, wheel_radius: float = 0.02):
+    def __init__(
+        self,
+        server_address: str,
+        server_port: int,
+        action_space,
+        n_robots_blue: int = 3,
+        n_robots_yellow: int = 3,
+        max_speed: float = 1.5,
+        wheel_radius: float = 0.02,
+    ):
         super().__init__(server_address, server_port)
         self.n_robots_blue = n_robots_blue
         self.n_robots_yellow = n_robots_yellow
@@ -19,7 +29,7 @@ class ActuatorClient(Client):
         self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             self._client_socket.connect((self._server_address, self._server_port))
-            #print(f"[INFO] Actuator conectado em {self._server_address}:{self._server_port}.")
+            # print(f"[INFO] Actuator conectado em {self._server_address}:{self._server_port}.")
         except socket.error as e:
             print(f"[ERRO] Erro na conexão com o Actuator: {e}")
 
@@ -27,7 +37,7 @@ class ActuatorClient(Client):
         """Fecha a conexão com o simulador."""
         if self._client_socket:
             self._client_socket.close()
-            #print("[INFO] Actuator desconectado.")
+            # print("[INFO] Actuator desconectado.")
 
     def send_commands(self, commands):
         """Envia os comandos para o simulador."""
@@ -50,14 +60,20 @@ class ActuatorClient(Client):
 
     def actions_to_v_wheels(self, actions):
         """Converte ações em velocidades das rodas (rad/s)."""
-        left = np.clip(actions[0] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED) / self.WHEEL_RADIUS
-        right = np.clip(actions[1] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED) / self.WHEEL_RADIUS
+        left = (
+            np.clip(actions[0] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED)
+            / self.WHEEL_RADIUS
+        )
+        right = (
+            np.clip(actions[1] * self.MAX_SPEED, -self.MAX_SPEED, self.MAX_SPEED)
+            / self.WHEEL_RADIUS
+        )
         return left, right
 
     def __send_packet(self, packet):
         """Envia um pacote para o simulador."""
         try:
             self._client_socket.sendall(packet.SerializeToString())
-            #print("[INFO] Pacote enviado com sucesso!")
+            # print("[INFO] Pacote enviado com sucesso!")
         except socket.error as e:
             print(f"[ERRO] Falha ao enviar pacote: {e}")

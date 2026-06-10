@@ -1,1 +1,1 @@
-from vss_env.utils.norm import  Normalizer
+from vss_env.utils.norm import Normalizer as Normalizer

@@ -9,7 +9,7 @@ from vss_env.proto.packet_pb2 import Environment
 
 
 class VisionClient(Client):
-    def __init__(self, server_address: str, server_port: int, field_type : str):
+    def __init__(self, server_address: str, server_port: int, field_type: str):
         super().__init__(server_address, server_port)
         self.__environment_mutex = threading.Lock()
         self.__environment: Environment = Environment()
@@ -22,7 +22,9 @@ class VisionClient(Client):
         """Binds the socket to the defined network and joins a multicast group."""
         try:
             # Cria um socket UDP
-            self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            self._client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+            )
 
             # Permitir reuso de endereço
             self._client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -36,9 +38,9 @@ class VisionClient(Client):
             self._client_socket.setsockopt(
                 socket.IPPROTO_IP,
                 socket.IP_ADD_MEMBERSHIP,
-                multicast_group + local_interface
+                multicast_group + local_interface,
             )
-            #print(f"[INFO] Visão conectada em {self._server_address}:{self._server_port}.")
+            # print(f"[INFO] Visão conectada em {self._server_address}:{self._server_port}.")
         except Exception as e:
             print(f"[ERROR] Failed to connect to network: {e}")
 
@@ -52,7 +54,7 @@ class VisionClient(Client):
                 self._client_socket.setsockopt(
                     socket.IPPROTO_IP,
                     socket.IP_DROP_MEMBERSHIP,
-                    multicast_group + local_interface
+                    multicast_group + local_interface,
                 )
             except Exception as e:
                 print(f"[ERROR] Error while leaving multicast group: {e}")
@@ -70,7 +72,7 @@ class VisionClient(Client):
         try:
             # Recebe um único pacote
             data, sender = self._client_socket.recvfrom(2048)
-            #print("[INFO] Pacote de visão recebido.")
+            # print("[INFO] Pacote de visão recebido.")
 
             if not data:
                 return None, None
@@ -93,7 +95,6 @@ class VisionClient(Client):
             print(f"[ERROR] Erro em run_client: {e}")
             return None
 
-
     def __fill_frame(self) -> None:
         self.__frame.ball = Ball(
             x=self.__environment.frame.ball.x,
@@ -101,7 +102,7 @@ class VisionClient(Client):
             z=self.__environment.frame.ball.z,
             v_x=self.__environment.frame.ball.vx,
             v_y=self.__environment.frame.ball.vy,
-            v_z=self.__environment.frame.ball.vz
+            v_z=self.__environment.frame.ball.vz,
         )
 
         # Preencher os robôs azuis
@@ -114,7 +115,7 @@ class VisionClient(Client):
                 orientation=robot.orientation,
                 v_x=robot.vx,
                 v_y=robot.vy,
-                v_orientation=robot.vorientation
+                v_orientation=robot.vorientation,
             )
 
         # Preencher os robôs amarelos
@@ -127,7 +128,7 @@ class VisionClient(Client):
                 orientation=robot.orientation,
                 v_x=robot.vx,
                 v_y=robot.vy,
-                v_orientation=robot.vorientation
+                v_orientation=robot.vorientation,
             )
 
     def get_frame(self) -> Frame:

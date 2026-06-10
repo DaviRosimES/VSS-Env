@@ -2,14 +2,15 @@ import unittest
 import numpy as np
 from vss_env.noise.OUNoise import OrnsteinUhlenbeckAction
 
+
 # Classe que simula um action_space para teste
 class MockActionSpace:
     def __init__(self, low, high):
         self.low = np.array(low)
         self.high = np.array(high)
 
-class TestOrnsteinUhlenbeckAction(unittest.TestCase):
 
+class TestOrnsteinUhlenbeckAction(unittest.TestCase):
     def setUp(self):
         self.action_space = MockActionSpace(low=[-1, -1], high=[1, 1])
         self.ou = OrnsteinUhlenbeckAction(self.action_space, theta=0.15, dt=0.02)
@@ -55,5 +56,6 @@ class TestOrnsteinUhlenbeckAction(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(sample1, sample2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
