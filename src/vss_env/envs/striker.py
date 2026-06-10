@@ -12,8 +12,12 @@ from vss_env.utils import Normalizer
 from vss_env.uvf import UVF
 
 
-class StrickerEnv(gym.Env):
+class StrikerEnv(gym.Env):
     metadata = {"render_modes": ["None"], "render_fps": 0}
+
+    # Quantidade de valores na observação por entidade.
+    __BASE_OBS = 11  # bola (4) + atacante (7)
+    __OBS_PER_OBSTACLE = 2  # posição (x, y) de cada obstáculo
 
     def __init__(self, config: SimConfig = None):
         if config is None:
@@ -31,11 +35,19 @@ class StrickerEnv(gym.Env):
         self.__W_BALL_GRAD = config.w_ball_grad
         self.__W_UVF = config.w_uvf
 
+        # Número de robôs amarelos colocados como obstáculos estáticos.
+        # Limitado pela quantidade de robôs amarelos disponíveis no campo.
+        max_obstacles = int(self.__field.NUM_ROBOTS / 2)
+        self.__num_obstacles = max(0, min(config.num_obstacles, max_obstacles))
+        # Distância mínima de spawn entre obstáculos, bola e atacante [metros].
+        self.__OBSTACLE_MIN_DIST = 0.15
+
         self.action_space = gym.spaces.Box(
             low=-1.0, high=1.0, shape=(2,), dtype=np.float32
         )
+        obs_size = self.__BASE_OBS + self.__OBS_PER_OBSTACLE * self.__num_obstacles
         self.observation_space = gym.spaces.Box(
-            low=-1, high=1, shape=(11,), dtype=np.float32
+            low=-1, high=1, shape=(obs_size,), dtype=np.float32
         )
 
         self.actuator_client = ActuatorClient(
@@ -139,19 +151,31 @@ class StrickerEnv(gym.Env):
 
     def __create_replacement_packet(self):
         packet = Packet()
-        packet.replace.ball.x, packet.replace.ball.y = (
-            self.replacer_client.random_ball_position()
-        )
 
-        # Robôs azuis
-        for i in range(int(self.__field.NUM_ROBOTS / 2)):
+        # Posiciona a bola e o atacante (ID 2) sem sobreposição.
+        ball_x, ball_y = self.replacer_client.random_ball_position()
+        occupied = [(ball_x, ball_y)]
+        striker_x, striker_y = self.__sample_free_position(occupied)
+        occupied.append((striker_x, striker_y))
+
+        # Amostra posições livres para os obstáculos amarelos estáticos.
+        obstacle_positions = []
+        for _ in range(self.__num_obstacles):
+            pos = self.__sample_free_position(occupied)
+            obstacle_positions.append(pos)
+            occupied.append(pos)
+
+        packet.replace.ball.x, packet.replace.ball.y = ball_x, ball_y
+
+        num_team = int(self.__field.NUM_ROBOTS / 2)
+
+        # Robôs azuis: apenas o atacante (ID 2) entra em campo.
+        for i in range(num_team):
             robot_replacer = packet.replace.robots.add()
             robot_replacer.position.robot_id = i
-            # Robo controlado (ID_2)
             if i == 2:
-                robot_replacer.position.x, robot_replacer.position.y = (
-                    self.replacer_client.random_robot_position()
-                )
+                robot_replacer.position.x = striker_x
+                robot_replacer.position.y = striker_y
             else:
                 robot_replacer.position.x, robot_replacer.position.y = (
                     self.replacer_client.outside_robot_position()
@@ -160,18 +184,37 @@ class StrickerEnv(gym.Env):
             robot_replacer.yellowteam = False
             robot_replacer.turnon = True
 
-        # Robôs amarelos
-        for i in range(int(self.__field.NUM_ROBOTS / 2)):
+        # Robôs amarelos: os primeiros `num_obstacles` viram obstáculos em campo,
+        # o restante é enviado para fora do campo.
+        for i in range(num_team):
             robot_replacer = packet.replace.robots.add()
             robot_replacer.position.robot_id = i
-            robot_replacer.position.x, robot_replacer.position.y = (
-                self.replacer_client.outside_robot_position()
-            )
+            if i < self.__num_obstacles:
+                robot_replacer.position.x, robot_replacer.position.y = (
+                    obstacle_positions[i]
+                )
+            else:
+                robot_replacer.position.x, robot_replacer.position.y = (
+                    self.replacer_client.outside_robot_position()
+                )
             robot_replacer.position.orientation = random.uniform(0, 360)
             robot_replacer.yellowteam = True
             robot_replacer.turnon = True
 
         return packet
+
+    def __sample_free_position(self, occupied, max_tries=100):
+        """Amostra uma posição de robô que respeite a distância mínima das já ocupadas."""
+        x, y = self.replacer_client.random_robot_position()
+        for _ in range(max_tries):
+            if all(
+                math.hypot(x - ox, y - oy) >= self.__OBSTACLE_MIN_DIST
+                for ox, oy in occupied
+            ):
+                return x, y
+            x, y = self.replacer_client.random_robot_position()
+        # Fallback: aceita a última amostra mesmo sem o espaçamento ideal.
+        return x, y
 
     def __get_observation(self):
         ball_x = Normalizer.norm_pos_x(self.__frame.ball.x)
@@ -186,22 +229,47 @@ class StrickerEnv(gym.Env):
         robot_orientation = robot.orientation
         robot_v_theta = Normalizer.norm_w(robot.v_orientation)
 
-        return np.array(
-            [
-                ball_x,
-                ball_y,
-                ball_vx,
-                ball_vy,
-                robot_x,
-                robot_y,
-                robot_vx,
-                robot_vy,
-                np.sin(robot_orientation),
-                np.cos(robot_orientation),
-                robot_v_theta,
-            ],
-            dtype=np.float32,
-        )
+        observation = [
+            ball_x,
+            ball_y,
+            ball_vx,
+            ball_vy,
+            robot_x,
+            robot_y,
+            robot_vx,
+            robot_vy,
+            np.sin(robot_orientation),
+            np.cos(robot_orientation),
+            robot_v_theta,
+        ]
+        observation.extend(self.__obstacles_observation(robot))
+
+        return np.array(observation, dtype=np.float32)
+
+    def __obstacles_observation(self, robot):
+        """Posições (x, y) normalizadas dos obstáculos mais próximos do atacante.
+
+        Retorna lista vazia quando o treino é sem obstáculos. Caso o frame reporte
+        menos robôs do que o esperado, completa com 1.0 (sentinela "longe").
+        """
+        if self.__num_obstacles == 0:
+            return []
+
+        obstacles = sorted(
+            self.__frame.yellow_robots.values(),
+            key=lambda o: math.hypot(o.x - robot.x, o.y - robot.y),
+        )[: self.__num_obstacles]
+
+        values = []
+        for obs in obstacles:
+            values.append(Normalizer.norm_pos_x(obs.x))
+            values.append(Normalizer.norm_pos_y(obs.y))
+
+        # Padding defensivo para manter o tamanho fixo da observação.
+        while len(values) < self.__OBS_PER_OBSTACLE * self.__num_obstacles:
+            values.append(1.0)
+
+        return values
 
     def _calculate_reward(self):
         # Recompensa/Penalidade por gol
